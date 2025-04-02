@@ -1,11 +1,16 @@
-import socket
-import json
-import base64
-import uuid
-from DataToObject.WorkerResult import WorkerResult
-import dataclasses
+import socket, json, base64, uuid, dataclasses, time, ssl, os
 from datetime import datetime
-import time
+
+from DataToObject.WorkerResult import WorkerResult
+
+socket.setdefaulttimeout(5)
+
+pwd = os.path.dirname(os.path.abspath(__file__))
+
+sslContext = ssl.create_default_context()
+sslContext.load_verify_locations(os.path.join(pwd, '.ssh', 'rootCA.pem'))
+sslContext.check_hostname = False
+sslContext.verify_mode = ssl.CERT_NONE
 
 workerVersion: str = "w1.0.0"
 workerIdentifier: str = str(uuid.uuid4())
@@ -36,15 +41,17 @@ def dataToJsonEncodedToBase64Str(data: object) -> str:
 
 def main():
     while True:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((serverAddress, serverPort))
+        try:
+            sock = sslContext.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname="localhost")
+            sock.connect((serverAddress, serverPort))
 
-        data = dataToJsonEncodedToBase64Str(getInfos())
-        sock.send(data)
-        print('Data sent !\n')
-        
-        sock.close()
-
+            data = dataToJsonEncodedToBase64Str(getInfos())
+            sock.send(data)
+            print('Data sent !\n')
+            
+            sock.close()
+        except Exception:
+            pass
         time.sleep(60)
 
 if __name__ == "__main__":

@@ -1,11 +1,9 @@
-import socket
-from DataToObject.WorkerResult import WorkerResult
-import json
+import ssl, os, sys, socket, json, base64
 from datetime import datetime
-import base64
-from Utils.DictToDataclass import dataclass_from_dict
 from threading import Thread
-import sys
+
+from DataToObject.WorkerResult import WorkerResult
+from Utils.DictToDataclass import dataclass_from_dict
 
 socket.setdefaulttimeout(5)
 
@@ -14,6 +12,16 @@ collectedData: dict = {}
 threadWorking = True
 
 serverPort = 55612
+
+pwd = os.path.dirname(os.path.abspath(__file__))
+
+sslContext = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+sslContext.load_cert_chain(
+    certfile=os.path.join(pwd, '.ssh', 'rootCA.pem'), 
+    keyfile=os.path.join(pwd, '.ssh', 'rootCA.key')
+)
+sslContext.check_hostname = False
+sslContext.verify_mode = ssl.CERT_NONE
 
 def receive_all(sock, buffer_size=4096):
     response = b""
@@ -49,7 +57,8 @@ def thread_listen():
     while threadWorking:
         try: 
             worker_sock, worker_address = sock.accept()
-            handle_worker(worker_sock, worker_address)
+            with sslContext.wrap_socket(worker_sock, server_side=True) as secure_conn:
+                handle_worker(secure_conn, worker_address)
         except socket.timeout:
             pass
 
