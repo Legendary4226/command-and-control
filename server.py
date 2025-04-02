@@ -4,9 +4,14 @@ import json
 from datetime import datetime
 import base64
 from Utils.DictToDataclass import dataclass_from_dict
+from threading import Thread
+import sys
+
+socket.setdefaulttimeout(5)
 
 workers: dict = {}
-collectedData = {}
+collectedData: dict = {}
+threadWorking = True
 
 serverPort = 55612
 
@@ -28,6 +33,9 @@ sock.listen()
 def recap():
     print('\n---------\n')
 
+    if len(workers) == 0:
+        print('Aucun worker')
+
     for uuid, worker in workers.items():
         print("Worker: " + str(uuid))
         print('\tcreated_at: ' + str(worker['created_at']))
@@ -37,9 +45,16 @@ def recap():
     
     print('\n---------\n')
 
-while True:
-    worker_sock, worker_address = sock.accept()
-    print("Received data from " + str(worker_address))
+def thread_listen():
+    while threadWorking:
+        try: 
+            worker_sock, worker_address = sock.accept()
+            handle_worker(worker_sock, worker_address)
+        except socket.timeout:
+            pass
+
+def handle_worker(worker_sock: socket, worker_address: any):
+    print("\nReceived data from " + str(worker_address))
 
     data = receive_all(worker_sock)
     worker_sock.close()
@@ -51,7 +66,7 @@ while True:
     if worker_result.worker_identifier not in workers.keys():
         workers[worker_result.worker_identifier] = {
             'created_at': datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
-            'connexions_count': 1,
+            'connexions_count': 0,
             'addresses': [worker_address],
             'last_known_address': worker_address,
         }
@@ -62,8 +77,26 @@ while True:
 
     collectedData[worker_result.worker_identifier].append(worker_result)
 
-    recap()
+    print('> ', end='')
+    sys.stdout.flush()
+    
+
+thread = Thread(target=thread_listen)
+thread.start()
+
+while True:
+    command = input('> ')
+
+    if command == 'exit':
+        print('Exiting...')
+        threadWorking=False
+        thread.join(500)
+        sock.close()
+        break
+    elif command == 'r':
+        recap()
 
 sock.close()
+
 # TODO Bonus: JSON DUMPS workers and collectedData dans un JSON
 # TODO Bonus: reload depuis
