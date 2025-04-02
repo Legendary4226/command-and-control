@@ -5,7 +5,7 @@ from datetime import datetime
 import base64
 from Utils.DictToDataclass import dataclass_from_dict
 
-workers = {}
+workers: dict = {}
 collectedData = {}
 
 serverPort = 55612
@@ -25,9 +25,21 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind(("0.0.0.0", 55612))
 sock.listen()
 
+def recap():
+    print('\n---------\n')
+
+    for uuid, worker in workers.items():
+        print("Worker: " + str(uuid))
+        print('\tcreated_at: ' + str(worker['created_at']))
+        print('\tlast_ping_at: ' + str(worker['last_ping_at']))
+        print('\tcreated_at: ' + str(worker['created_at']))
+        print('\tconnexions_count: ' + str(worker['connexions_count']))
+    
+    print('\n---------\n')
+
 while True:
     worker_sock, worker_address = sock.accept()
-    print("Received data from " + str(worker_address) + '\n')
+    print("Received data from " + str(worker_address))
 
     data = receive_all(worker_sock)
     worker_sock.close()
@@ -50,9 +62,7 @@ while True:
 
     collectedData[worker_result.worker_identifier].append(worker_result)
 
-    print("\nRecap:\n")
-    print(workers)
-    print()
+    recap()
 
 sock.close()
 # TODO Bonus: JSON DUMPS workers and collectedData dans un JSON
