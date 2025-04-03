@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 @dataclass
 class WorkerResult:
-    worker_version: str = ''
-    worker_identifier: str = ''
+    version: str = ''
+    identifier: str = ''
 
     os_name: str = ''
     os_version: str = ''
@@ -12,3 +12,6 @@ class WorkerResult:
     processor: str = ''
 
     created_at: str = ''
+
+    def __init__(self):
+        pass
