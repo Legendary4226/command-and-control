@@ -1,7 +1,9 @@
+import json
 import os
 import socket
 import ssl
 import sys
+from dataclasses import asdict
 from datetime import datetime
 from threading import Thread
 
@@ -9,17 +11,31 @@ from DataToObject.ServerCommand import ServerCommand
 from DataToObject.WorkerRegistered import WorkerRegistered
 from DataToObject.WorkerResult import WorkerResult
 from DataToObject.WorkerResultCommand import WorkerResultCommand
+from Utils.DictToDataclass import dict_to_dataclass
 from Utils.ObjectSerialization import data_to_base64_json_encoded_bytes, bytes_to_object
 from Utils.ReceiveAll import socket_receive_all
 
 # ------------ GLOBAL INITS
 socket.setdefaulttimeout(5)
 
-# TODO Bonus: reload depuis le json qui a été dumps if le fichier existe et pas vide
+pwd = os.path.dirname(os.path.abspath(__file__))
+data_json_path = os.path.join(pwd, 'data.json')
+
+
 workers: dict[str, WorkerRegistered] = {}
 thread_working = True
 
-pwd = os.path.dirname(os.path.abspath(__file__))
+try:
+    if os.path.exists(data_json_path):
+        with open(data_json_path, 'r') as file:
+            data_json = file.read()
+            tmp_data: dict = json.loads(data_json)
+            for key, item in tmp_data.items():
+                workers[key] = dict_to_dataclass(WorkerResult, item)
+        print('Successfully loaded data.json !')
+except Exception as e:
+    print('Detected data.json file but could not load data from it')
+    print(e)
 
 ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 ssl_context.load_cert_chain(
@@ -163,6 +179,13 @@ def command_cmd(command: str) -> None:
             print('\t' + serverCommand)
         print('Example: "cmd 7f8fd662-eaa1-4315-8941-100671cb0764 ping google.com"')
 
+def exit(thread: Thread) -> None:
+    global thread_working, pwd
+    thread_working = False
+    print('Exiting...')
+    thread.join(5000)
+    sock.close()
+
 # ------------ PROGRAM
 def main() -> None:
     global sock, workers
@@ -174,12 +197,7 @@ def main() -> None:
         command = input('> ')
 
         if command == 'exit':
-            # TODO Bonus: JSON DUMPS workers and collectedData dans un JSON
-            print('Exiting...')
-            global thread_working
-            thread_working=False
-            thread.join(5000)
-            sock.close()
+            exit(thread)
             break
         elif command == 'r':
             print_recap()
@@ -200,6 +218,16 @@ def main() -> None:
                   '"queue" to list waiting commands')
 
     sock.close()
+
+    try:
+        with open(os.path.join(pwd, 'data.json'), 'w') as file:
+            tmp_data = {}
+            for uuid, worker in workers.items():
+                tmp_data[uuid] = asdict(worker)
+            file.write(json.dumps(tmp_data))
+    except Exception as e:
+        print('Could not persist to data.json')
+        print(e)
 
 if __name__ == "__main__":
     main()
