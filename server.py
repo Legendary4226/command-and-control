@@ -8,12 +8,14 @@ from threading import Thread
 from DataToObject.ServerCommand import ServerCommand
 from DataToObject.WorkerRegistered import WorkerRegistered
 from DataToObject.WorkerResult import WorkerResult
+from DataToObject.WorkerResultCommand import WorkerResultCommand
 from Utils.ObjectSerialization import data_to_base64_json_encoded_bytes, bytes_to_object
 from Utils.ReceiveAll import socket_receive_all
 
 # ------------ GLOBAL INITS
 socket.setdefaulttimeout(5)
 
+# TODO Bonus: reload depuis le json qui a été dumps if le fichier existe et pas vide
 workers: dict[str, WorkerRegistered] = {}
 thread_working = True
 
@@ -109,7 +111,9 @@ def add_command_to_queue(worker_identifier: str, command: str, data: str = '') -
 
     server_command = ServerCommand()
     server_command.command = command
+    print(data)
     server_command.data = data
+    print(server_command)
     worker.command_queue.append(server_command)
 
     return True
@@ -122,22 +126,27 @@ def send_command_from_queue(worker_sock: socket.socket, worker_identifier: str) 
     if len(worker.command_queue) == 0:
         return
     
-    cmd = worker.command_queue.pop(0)
-    command = ServerCommand()
-    command.command = cmd.command
+    command = worker.command_queue.pop(0)
 
     data = data_to_base64_json_encoded_bytes(command)
     worker_sock.send(data)
-    print('Command sent to worker ' + worker_identifier + '\n')
+    print('Command ' + command.command + ' sent to worker ' + worker_identifier + '\n')
+
+    result_data = socket_receive_all(worker_sock)
+    result: WorkerResultCommand = bytes_to_object(result_data, WorkerResultCommand)
+    worker.command_results.append(result)
+    print(f'Command result from worker {worker_identifier}: {result}')
 
 def command_cmd(command: str) -> None:
     try:
         split = command.split(' ')
         worker_identifier = split[1]
         to_exec = split[2]
-        data = ''
-        if len(split) >= 4:
-            data = split[3]
+        data_array = []
+        for i in range(3, len(split)):
+            data_array.append(split[i])
+        data = ' '.join(data_array)
+
 
         if to_exec not in ServerCommand.ALL:
             raise ValueError()
@@ -147,17 +156,16 @@ def command_cmd(command: str) -> None:
             return
 
         print('Command added to queue.\n')
-    except ValueError:
-        print('Invalid command or syntax\n')
+    except (ValueError, IndexError):
+        print('Invalid syntax')
         print('Available commands:')
         for serverCommand in ServerCommand.ALL:
             print('\t' + serverCommand)
+        print('Example: "cmd 7f8fd662-eaa1-4315-8941-100671cb0764 ping google.com"')
 
 # ------------ PROGRAM
-# TODO Bonus: JSON DUMPS workers and collectedData dans un JSON
-# TODO Bonus: reload depuis le json qui a été dumps
 def main() -> None:
-    global sock
+    global sock, workers
 
     thread = Thread(target=thread_listen)
     thread.start()
@@ -166,16 +174,30 @@ def main() -> None:
         command = input('> ')
 
         if command == 'exit':
+            # TODO Bonus: JSON DUMPS workers and collectedData dans un JSON
             print('Exiting...')
             global thread_working
             thread_working=False
-            thread.join(500)
+            thread.join(5000)
             sock.close()
             break
         elif command == 'r':
             print_recap()
+        elif command == 'queue':
+            print("Queue:")
+            for uuid, worker in workers.items():
+                if len(worker.command_queue) > 0:
+                    print('\t' + uuid)
+                    for command in worker.command_queue:
+                        print('\t' + command.command + ' ' + command.data)
         elif command.startswith('cmd'):
             command_cmd(command)
+        else:
+            print('Available commands:\n\t'
+                  '"r" for a recap/list of clients\n\t'
+                  '"exit"\n\t'
+                  '"cmd <worker uuid> <command>" (run only "cmd" to get help)\n\t'
+                  '"queue" to list waiting commands')
 
     sock.close()
 

@@ -1,9 +1,8 @@
-import dataclasses
-
-def dict_to_dataclass(klass: any, d: any):
+def dict_to_dataclass(klass: any, data: dict) -> any:
     try:
-        fieldtypes = {f.name:f.type for f in dataclasses.fields(klass)}
-        return klass(**{f:dict_to_dataclass(fieldtypes[f], d[f]) for f in d})
+        data_object = object.__new__(klass)
+        for key, value in data.items():
+            setattr(data_object, key, value)
+        return data_object
     except:
-        return d # Not a dataclass field
-    
+        return data
