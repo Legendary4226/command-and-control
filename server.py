@@ -127,7 +127,6 @@ def add_command_to_queue(worker_identifier: str, command: str, data: str = '') -
 
     server_command = ServerCommand()
     server_command.command = command
-    print(data)
     server_command.data = data
     print(server_command)
     worker.command_queue.append(server_command)
@@ -207,7 +206,7 @@ def main() -> None:
                 if len(worker.command_queue) > 0:
                     print('\t' + uuid)
                     for command in worker.command_queue:
-                        print('\t' + command.command + ' ' + command.data)
+                        print('\t\t' + command.command + ' ' + command.data)
         elif command.startswith('cmd'):
             command_cmd(command)
         else:
