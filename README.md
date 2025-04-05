@@ -30,23 +30,29 @@ python3 server.py
 **Server commands :**
 
 `r`
+
 : To print a "recap" of all registered workers
 
 &nbsp;&nbsp;&nbsp;&nbsp;![Recap command](assets/command_recap.png)
 
 `cmd <worker uuid> <command to run> <*additionnal args>`
+
 : Add a command to the queue for a worker. Run `cmd` alone to get an additionnal help.
+
 : Exemple: `cmd d973c272-97d5-48c3-b737-601b4b65bace ping google.com`
 
 &nbsp;&nbsp;&nbsp;&nbsp;![CMD command](assets/command_cmd.png)
 
 `queue`
+
 : To print a "recap" of all workers having queued commands.
 
 &nbsp;&nbsp;&nbsp;&nbsp;![Queue command](assets/command_queue.png)
 
 `exit`
+
 : Smoothly stop the thread before closing the socket.
+
 : Also persist the workers data into a JSON file that will be automatically reloaded at the next start.
 
 &nbsp;&nbsp;&nbsp;&nbsp;![Exit command](assets/command_exit.png)
